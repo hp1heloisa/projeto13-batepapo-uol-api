@@ -10,7 +10,6 @@ const app = express()
 app.use(cors());
 app.use(json());
 dotenv.config();
-const agora = dayjs().format('HH:mm:ss');
 
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 
@@ -22,6 +21,25 @@ try {
 }
 
 const db = mongoClient.db();
+
+setInterval(async ()=>{
+    try {
+        const removidos = await db.collection("participants").find({lastStatus: {$lt: Date.now()-10000}}).toArray();
+        await db.collection("participants").deleteMany({lastStatus: {$lt: Date.now()-10000}});
+        console.log(removidos);
+        removidos.forEach(async usuario => {
+            await db.collection("messages").insertOne({
+                from: usuario.name,
+                to: "Todos",
+                text: "sai da sala...",
+                type: "status",
+                time: dayjs().format('HH:mm:ss')
+            })
+        });
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+}, 15000)
 
 app.post("/participants", async (req, res) => {
     const { name } = req.body;
@@ -42,15 +60,12 @@ app.post("/participants", async (req, res) => {
             to: 'Todos',
             text: 'entra na sala...',
             type: 'status',
-            time: agora
+            time: dayjs().format('HH:mm:ss')
         });
         res.sendStatus(201);
     } catch (err) {
         res.status(500).send(err.message);
     }
-
-    console.log(validation.error)
-    res.send(name)
 });
 
 app.get('/participants', async (req, res) => {
@@ -82,16 +97,15 @@ app.post('/messages', async (req, res) => {
                 to,
                 text,
                 type,
-                time: agora
+                time: dayjs().format('HH:mm:ss')
             });
             res.sendStatus(201);
         } else{ 
             return res.sendStatus(422);
         }
-       } catch (err) {
-        res.status(500).send(err.message);
-       }
-    res.send(validation.error);
+    } catch (err) {
+        console.log(err.message);
+    }
 });
 
 app.get('/messages', async (req, res) => {
