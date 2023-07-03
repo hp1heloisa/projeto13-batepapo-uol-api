@@ -101,7 +101,7 @@ app.post('/messages', async (req, res) => {
                 type,
                 time: dayjs().format('HH:mm:ss')
             });
-            res.sendStatus(201);
+            res.sendStatus(200);
         } else{ 
             return res.sendStatus(422);
         }
@@ -164,7 +164,7 @@ app.delete("/messages/:id", async (req, res) => {
         if (dono.from != user) return res.sendStatus(401);
         const result = await db.collection("messages").deleteOne({_id: new ObjectId(id)});
         if (result.deletedCount === 0) return res.sendStatus(404);
-        res.sendStatus(200);
+        res.sendStatus(201);
     } catch (err) {
         res.sendStatus(500);
     }
@@ -191,7 +191,7 @@ app.put("/messages/:id", async (req,res) => {
             {_id: new ObjectId(id)},
             {$set: req.body}
         );
-        res.sendStatus(200);
+        res.sendStatus(201);
 
     } catch (err) {
         res.sendStatus(500);
