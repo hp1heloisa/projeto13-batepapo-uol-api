@@ -111,7 +111,6 @@ app.post('/messages', async (req, res) => {
 app.get('/messages', async (req, res) => {
     const { user } = req.headers;
     let { limit } = req.query;
-    console.log(limit);
     try {
         const mensagens = await db.collection('messages').find({
             $or: [
@@ -135,7 +134,7 @@ app.get('/messages', async (req, res) => {
                 i++;
                 limit--;
             }
-            return res.send(filtada);
+            return res.send(filtada.reverse());
         }
         res.send(mensagens);
     } catch (err){
@@ -152,6 +151,49 @@ app.post('/status', async (req, res) => {
     )
     if (result.matchedCount === 0) return res.sendStatus(404);
     res.sendStatus(200);
+});
+
+app.delete("/messages/:id", async (req, res) => {
+    const { user } = req.headers;
+    const { id } = req.params;
+    try {
+        const dono = await db.collection("messages").findOne({_id: new ObjectId(id)});
+        if (!dono) return res.sendStatus(404);
+        if (dono.from != user) return res.sendStatus(401);
+        const result = await db.collection("messages").deleteOne({_id: new ObjectId(id)});
+        if (result.deletedCount === 0) return res.sendStatus(404);
+        res.sendStatus(200);
+    } catch (err) {
+        res.sendStatus(500);
+    }
+});
+
+app.put("/messages/:id", async (req,res) => {
+    const from = req.headers.user;
+    const { id } = req.params;
+
+    const schemaEdit = Joi.object({
+        to: Joi.string().required(),
+        text: Joi.string().required(),
+        type: Joi.any().valid('message', 'private_message')
+    });
+    const validation = schemaEdit.validate(req.body);
+    if (validation.error) return res.sendStatus(422);
+    try {
+        const participa = await db.collection("participants").findOne({name: from});
+        if (!participa) return res.sendStatus(422);
+        const existe = await db.collection("messages").findOne({_id: new ObjectId(id)});
+        if (!existe) return res.sendStatus(404);
+        if (existe.from != from) return res.sendStatus(401);
+        await db.collection("messages").updateOne(
+            {_id: new ObjectId(id)},
+            {$set: req.body}
+        );
+        res.sendStatus(200);
+
+    } catch (err) {
+        res.sendStatus(500);
+    }
 })
 
 
