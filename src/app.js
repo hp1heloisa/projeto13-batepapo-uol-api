@@ -199,5 +199,5 @@ app.put("/messages/:id", async (req,res) => {
 })
 
 
-const PORT = 5005; 
+const PORT = 5000; 
 app.listen(PORT, () => console.log(`Servidor está rodando na porta ${PORT}`));
