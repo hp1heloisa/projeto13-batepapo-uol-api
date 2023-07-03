@@ -101,7 +101,7 @@ app.post('/messages', async (req, res) => {
                 type,
                 time: dayjs().format('HH:mm:ss')
             });
-            res.sendStatus(200);
+            res.sendStatus(201);
         } else{ 
             return res.sendStatus(422);
         }
@@ -136,9 +136,9 @@ app.get('/messages', async (req, res) => {
                 i++;
                 limit--;
             }
-            return res.send(filtada.reverse());
+            return res.status(201).send(filtada.reverse());
         }
-        res.send(mensagens);
+        res.status(201).send(mensagens);
     } catch (err){
         res.status(500).send(err.message);
     }
