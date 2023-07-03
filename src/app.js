@@ -128,6 +128,9 @@ app.get('/messages', async (req, res) => {
             const filtada = [];
             let i = 1;
             while (limit > 0){
+                if (!mensagens[mensagens.length-i]){
+                    break;
+                }
                 filtada.push(mensagens[mensagens.length-i]);
                 i++;
                 limit--;
