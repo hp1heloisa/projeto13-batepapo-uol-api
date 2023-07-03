@@ -87,7 +87,7 @@ app.post('/messages', async (req, res) => {
     const schemaMessage = Joi.object({
         to: Joi.string().required(),
         text: Joi.string().required(),
-        type: Joi.any().valid('message', 'private_message')
+        type: Joi.any().valid('message', 'private_message').required()
     })
     const validation = schemaMessage.validate(req.body);
     try {
@@ -177,7 +177,7 @@ app.put("/messages/:id", async (req,res) => {
     const schemaEdit = Joi.object({
         to: Joi.string().required(),
         text: Joi.string().required(),
-        type: Joi.any().valid('message', 'private_message')
+        type: Joi.any().valid('message', 'private_message').required()
     });
     const validation = schemaEdit.validate(req.body);
     if (validation.error) return res.sendStatus(422);
