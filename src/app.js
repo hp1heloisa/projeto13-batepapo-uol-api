@@ -44,27 +44,28 @@ setInterval(async ()=>{
 
 app.post("/participants", async (req, res) => {
     let { name } = req.body;
-    name = stripHtml(name).result.trim();
     const schemaName = Joi.string().required();
     const validation = schemaName.validate(name);
-    if (validation.error){
-        return res.sendStatus(422);
-    }
     try {
-        const participante = await db.collection("participants").findOne({name});
-        if (participante) return res.sendStatus(409);
-        await db.collection("participants").insertOne({
-            name,
-            lastStatus: Date.now()
-        });
-        await db.collection("messages").insertOne({
-            from: name,
-            to: 'Todos',
-            text: 'entra na sala...',
-            type: 'status',
-            time: dayjs().format('HH:mm:ss')
-        });
-        return res.sendStatus(201);
+        if (name && !validation.error){
+            name = stripHtml(name).result.trim();
+            const participante = await db.collection("participants").findOne({name});
+            if (participante) return res.sendStatus(409);
+            await db.collection("participants").insertOne({
+                name,
+                lastStatus: Date.now()
+            });
+            await db.collection("messages").insertOne({
+                from: name,
+                to: 'Todos',
+                text: 'entra na sala...',
+                type: 'status',
+                time: dayjs().format('HH:mm:ss')
+            });
+            return res.sendStatus(201);
+        } else{
+            return res.sendStatus(422);
+        }
     } catch (err) {
         res.status(500).send(err.message);
     }
@@ -94,10 +95,10 @@ app.post('/messages', async (req, res) => {
             const participante = await db.collection("participants").findOne({name: from});
             if (!participante) return res.sendStatus(422);
             await db.collection("messages").insertOne({
-                from,
-                to,
-                text,
-                type,
+                from: stripHtml(from).result.trim(),
+                to: stripHtml(to).result.trim(),
+                text: stripHtml(text).result.trim(),
+                type: stripHtml(type).result.trim(),
                 time: dayjs().format('HH:mm:ss')
             });
             res.sendStatus(201);
@@ -163,7 +164,7 @@ app.delete("/messages/:id", async (req, res) => {
         if (dono.from != user) return res.sendStatus(401);
         const result = await db.collection("messages").deleteOne({_id: new ObjectId(id)});
         if (result.deletedCount === 0) return res.sendStatus(404);
-        res.sendStatus(201);
+        res.sendStatus(200);
     } catch (err) {
         res.sendStatus(500);
     }
@@ -190,7 +191,7 @@ app.put("/messages/:id", async (req,res) => {
             {_id: new ObjectId(id)},
             {$set: req.body}
         );
-        res.sendStatus(201);
+        res.sendStatus(200);
 
     } catch (err) {
         res.sendStatus(500);
@@ -198,5 +199,5 @@ app.put("/messages/:id", async (req,res) => {
 })
 
 
-const PORT = 5000; 
+const PORT = 5005; 
 app.listen(PORT, () => console.log(`Servidor está rodando na porta ${PORT}`));
