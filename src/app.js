@@ -64,7 +64,7 @@ app.post("/participants", async (req, res) => {
             type: 'status',
             time: dayjs().format('HH:mm:ss')
         });
-        res.sendStatus(201);
+        return res.sendStatus(201);
     } catch (err) {
         res.status(500).send(err.message);
     }
@@ -93,7 +93,6 @@ app.post('/messages', async (req, res) => {
         if (from && !validation.error) {
             const participante = await db.collection("participants").findOne({name: from});
             if (!participante) return res.sendStatus(422);
-            res.send(participante);
             await db.collection("messages").insertOne({
                 from,
                 to,
@@ -136,9 +135,9 @@ app.get('/messages', async (req, res) => {
                 i++;
                 limit--;
             }
-            return res.status(201).send(filtada.reverse());
+            return res.send(filtada.reverse());
         }
-        res.status(201).send(mensagens);
+        res.send(mensagens);
     } catch (err){
         res.status(500).send(err.message);
     }
