@@ -4,8 +4,9 @@ import dotenv from "dotenv";
 import { MongoClient, ObjectId } from "mongodb";
 import Joi from "joi";
 import dayjs from "dayjs";
+import { stripHtml } from 'string-strip-html';
 
-const app = express()
+const app = express();
 
 app.use(cors());
 app.use(json());
@@ -42,7 +43,8 @@ setInterval(async ()=>{
 }, 15000)
 
 app.post("/participants", async (req, res) => {
-    const { name } = req.body;
+    let { name } = req.body;
+    name = stripHtml(name).result.trim();
     const schemaName = Joi.string().required();
     const validation = schemaName.validate(name);
     if (validation.error){
