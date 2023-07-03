@@ -92,7 +92,7 @@ app.post('/messages', async (req, res) => {
     const validation = schemaMessage.validate(req.body);
     try {
         if (from && !validation.error) {
-            const participante = await db.collection("participants").findOne({name: from});
+            const participante = await db.collection("participants").findOne({name: stripHtml(from).result.trim()});
             if (!participante) return res.sendStatus(422);
             await db.collection("messages").insertOne({
                 from: stripHtml(from).result.trim(),
