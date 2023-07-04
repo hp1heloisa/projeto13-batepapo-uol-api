@@ -14,6 +14,15 @@ dotenv.config();
 
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 
+//Schemas 
+const schemaName = Joi.string().required();
+const schemaMessage = Joi.object({
+    from: Joi.string().required(),
+    to: Joi.string().required(),
+    text: Joi.string().required(),
+    type: Joi.valid('message', 'private_message').required()
+});
+
 try {
     await mongoClient.connect();
     console.log("MongoDB conectado!");
@@ -25,42 +34,46 @@ const db = mongoClient.db();
 
 setInterval(async ()=>{
     try {
-        const removidos = await db.collection("participants").find({lastStatus: {$lt: Date.now()-10000}}).toArray();
-        await db.collection("participants").deleteMany({lastStatus: {$lt: Date.now()-10000}});
+        const timeStamp = Date.now() - 10000;
+        const removidos = await db.collection("participants").find({lastStatus: {$lt: timeStamp}}).toArray();
+        await db.collection("participants").deleteMany({lastStatus: {$lt: timeStamp}});
         console.log(removidos);
-        removidos.forEach(async usuario => {
-            await db.collection("messages").insertOne({
-                from: usuario.name,
-                to: "Todos",
-                text: "sai da sala...",
-                type: "status",
-                time: dayjs().format('HH:mm:ss')
-            })
-        });
+        if (removidos.length > 0){
+            const mensagens = removidos.map(usuario => {
+                return ({
+                    from: usuario.name,
+                    to: "Todos",
+                    text: "sai da sala...",
+                    type: "status",
+                    time: dayjs().format('HH:mm:ss')
+                });
+            });
+            await db.collection("messages").insertMany(mensagens);
+        }
     } catch (err) {
-        res.status(500).send(err.message);
+        console.log(err);
     }
 }, 15000)
 
 app.post("/participants", async (req, res) => {
     let { name } = req.body;
-    const schemaName = Joi.string().required();
-    const validation = schemaName.validate(name);
+    const validation = schemaName.validate(name, {abortEarly: false});
     try {
         if (name && !validation.error){
             name = stripHtml(name).result.trim();
             const participante = await db.collection("participants").findOne({name});
             if (participante) return res.sendStatus(409);
+            const timeStamp = Date.now();
             await db.collection("participants").insertOne({
                 name,
-                lastStatus: Date.now()
+                lastStatus: timeStamp
             });
             await db.collection("messages").insertOne({
                 from: name,
                 to: 'Todos',
                 text: 'entra na sala...',
                 type: 'status',
-                time: dayjs().format('HH:mm:ss')
+                time: dayjs(timeStamp).format('HH:mm:ss')
             });
             return res.sendStatus(201);
         } else{
@@ -84,14 +97,9 @@ app.get('/participants', async (req, res) => {
 app.post('/messages', async (req, res) => {
     const { to, text, type } = req.body;
     const from = req.headers.user;
-    const schemaMessage = Joi.object({
-        to: Joi.string().required(),
-        text: Joi.string().required(),
-        type: Joi.any().valid('message', 'private_message').required()
-    })
-    const validation = schemaMessage.validate(req.body);
+    const validation = schemaMessage.validate({...req.body, from}, {abortEarly: false});
     try {
-        if (from && !validation.error) {
+        if (!validation.error) {
             const participante = await db.collection("participants").findOne({name: stripHtml(from).result.trim()});
             if (!participante) return res.sendStatus(422);
             await db.collection("messages").insertOne({
@@ -113,6 +121,9 @@ app.post('/messages', async (req, res) => {
 app.get('/messages', async (req, res) => {
     const { user } = req.headers;
     let { limit } = req.query;
+    if (limit && (limit <=0 || isNaN(limit))){
+        return res.sendStatus(422);
+    }
     try {
         const mensagens = await db.collection('messages').find({
             $or: [
@@ -122,23 +133,8 @@ app.get('/messages', async (req, res) => {
                 {to: user},
                 {from: user}
             ]
-        }).toArray();
-        if (limit && (limit <=0 || isNaN(limit) )){
-            return res.sendStatus(422);
-        }else if (limit) {
-            const filtada = [];
-            let i = 1;
-            while (limit > 0){
-                if (!mensagens[mensagens.length-i]){
-                    break;
-                }
-                filtada.push(mensagens[mensagens.length-i]);
-                i++;
-                limit--;
-            }
-            return res.send(filtada.reverse());
-        }
-        res.send(mensagens);
+        }).sort({$natural: -1}).limit(!limit ? 0 : Number(limit)).toArray();
+        res.send(mensagens.reverse());
     } catch (err){
         res.status(500).send(err.message);
     }
@@ -173,13 +169,7 @@ app.delete("/messages/:id", async (req, res) => {
 app.put("/messages/:id", async (req,res) => {
     const from = req.headers.user;
     const { id } = req.params;
-
-    const schemaEdit = Joi.object({
-        to: Joi.string().required(),
-        text: Joi.string().required(),
-        type: Joi.any().valid('message', 'private_message').required()
-    });
-    const validation = schemaEdit.validate(req.body);
+    const validation = schemaMessage.validate({...req.body, from}, {abortEarly: false});
     if (validation.error) return res.sendStatus(422);
     try {
         const participa = await db.collection("participants").findOne({name: from});
